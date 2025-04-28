@@ -649,6 +649,20 @@ def plot_seasonal_patterns(data, y_true, y_pred, timestamps, solar_scaler, load_
     full_data['month'] = full_data.index.month
     full_data['hour'] = full_data.index.hour
     
+    # Define seasons
+    def get_season(month):
+        if month in [12, 1, 2]:
+            return 'Winter'
+        elif month in [3, 4, 5]:
+            return 'Spring'
+        elif month in [6, 7, 8]:
+            return 'Summer'
+        else:
+            return 'Fall'
+    
+    # Add season information to full_data
+    full_data['season'] = full_data['month'].apply(get_season)
+    
     # Create DataFrames for solar and load forecasts
     solar_df = pd.DataFrame()
     load_df = pd.DataFrame()
