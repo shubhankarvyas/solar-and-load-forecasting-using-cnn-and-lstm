@@ -88,15 +88,7 @@ def generate_synthetic_data(days=365, resolution_hours=1):
     cloud_impact = 1 - (0.8 * df['cloud_cover'] ** 0.7)  # Non-linear cloud impact
     df['solar_irradiance'] = 1050 * daylight * cloud_impact
     
-    # Calculate generation with strict night-time zero generation
-    df['solar_generation'] = max_capacity * df['solar_irradiance'] / 1000 * efficiency
-    df.loc[hour_of_day < 6, 'solar_generation'] = 0  # Force zero generation before 6 AM
-    df.loc[hour_of_day >= 18, 'solar_generation'] = 0  # Force zero generation after 6 PM
-    
-    # Remove any residual noise during night hours
-    df.loc[daylight == 0, 'solar_generation'] = 0
-    
-    # Enhanced solar generation
+    # Define solar generation parameters first
     max_capacity = 100  # kW
     
     # More complex temperature efficiency
@@ -115,12 +107,23 @@ def generate_synthetic_data(days=365, resolution_hours=1):
     
     # Calculate generation with strict night-time zero generation
     df['solar_generation'] = max_capacity * df['solar_irradiance'] / 1000 * efficiency
-    df.loc[daylight == 0, 'solar_generation'] = 0  # Force zero generation during night hours
     
-    # Enhanced generation noise
+    # Enforce strict zero generation during nighttime
+    df.loc[hour_of_day < 6, 'solar_generation'] = 0  # Force zero generation before 6 AM
+    df.loc[hour_of_day >= 18, 'solar_generation'] = 0  # Force zero generation after 6 PM
+    df.loc[hour_of_day == 0, 'solar_generation'] = 0  # Force zero generation at midnight
+    df.loc[daylight == 0, 'solar_generation'] = 0  # Ensure zero generation during all night hours
+    
+    # Calculate final solar generation with noise
     noise_scale = 1.5 + 2.5 * df['cloud_cover'] * (1 - df['cloud_cover'])
-    df['solar_generation'] += np.random.normal(0, noise_scale, n_points)
+    generation_noise = np.random.normal(0, noise_scale, n_points)
+    generation_noise[daylight == 0] = 0  # Ensure no noise during night hours
+    
+    df['solar_generation'] += generation_noise
     df['solar_generation'] = df['solar_generation'].clip(0)
+    
+    # Final enforcement of zero generation during night hours
+    df.loc[daylight == 0, 'solar_generation'] = 0
     
     # Enhanced load patterns
     base_load = 200
